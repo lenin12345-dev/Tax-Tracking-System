@@ -5,23 +5,39 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Database setup
-DATABASE = "sqlite_db.db"
-
+DATABASE = "sqlite.db"
 def create_table():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tax_record (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company TEXT NOT NULL,
-            amount REAL NOT NULL,
-            payment_date DATE NOT NULL,
-            status TEXT NOT NULL,
-            due_date DATE NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tax_system (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company TEXT NOT NULL,
+                amount REAL NOT NULL,
+                payment_date DATE ,
+                status TEXT NOT NULL,
+                due_date DATE NOT NULL
+            )
+        ''')
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print("Error creating table:", e)
+        return False
+    finally:
+        conn.close()
+
+def main():
+    if create_table():
+        print("Tax record table created successfully")
+    else:
+        print("Failed to create tax record table")
+
+if __name__ == "__main__":
+    main()
+    # conn.commit()
+    # conn.close()
 
 # Create the table on startup
 create_table()
@@ -34,7 +50,7 @@ def index():
 def get_records():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, company, amount, payment_date, status, due_date FROM tax_record")
+    cursor.execute("SELECT id, company, amount, payment_date, status, due_date FROM tax_system")
     records = cursor.fetchall()
     conn.close()
     return jsonify(records)
@@ -47,9 +63,9 @@ def search():
     cursor = conn.cursor()
 
     if search_id:
-        cursor.execute("SELECT * FROM tax_record WHERE id=?", (search_id,))
+        cursor.execute("SELECT * FROM tax_system WHERE id=?", (search_id,))
     elif search_date:
-        cursor.execute("SELECT * FROM tax_record WHERE due_date=?", (search_date,))
+        cursor.execute("SELECT * FROM tax_system WHERE due_date=?", (search_date,))
     else:
         return jsonify([])
 
@@ -80,11 +96,11 @@ def add():
 
     if payment_date:
         # Insert with payment_date if provided
-        cursor.execute("INSERT INTO tax_record (company, amount, payment_date, status, due_date) VALUES (?, ?, ?, ?, ?)",
+        cursor.execute("INSERT INTO tax_system (company, amount, payment_date, status, due_date) VALUES (?, ?, ?, ?, ?)",
                     (company, amount, payment_date, status, due_date))
     else:
         # Insert without payment_date
-        cursor.execute("INSERT INTO tax_record (company, amount, status, due_date) VALUES (?, ?, ?, ?)",
+        cursor.execute("INSERT INTO tax_system (company, amount, status, due_date) VALUES (?, ?, ?, ?)",
                     (company, amount, status, due_date))
 
     conn.commit()
@@ -97,7 +113,7 @@ def add():
 def delete(record_id):
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM tax_record WHERE id=?", (record_id,))
+    cursor.execute("DELETE FROM tax_system WHERE id=?", (record_id,))
     conn.commit()
     conn.close()
     return jsonify({'success': True})
@@ -112,7 +128,7 @@ def calculate_tax():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM tax_record WHERE due_date=?", (selected_date,))
+    cursor.execute("SELECT * FROM tax_system WHERE due_date=?", (selected_date,))
     company_data = cursor.fetchall()
 
     if not company_data:
@@ -136,7 +152,7 @@ def calculate_tax():
 def get_tax_record(record_id):
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tax_record WHERE id=?", (record_id,))
+    cursor.execute("SELECT * FROM tax_system WHERE id=?", (record_id,))
     record = cursor.fetchone()
     conn.close()
     return jsonify(record) if record else jsonify({'error': 'Record not found'})
@@ -162,7 +178,7 @@ def update (record_id):
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
-    cursor.execute("UPDATE tax_record SET company=?, amount=?, payment_date=?, status=?, due_date=? WHERE id=?",
+    cursor.execute("UPDATE tax_system SET company=?, amount=?, payment_date=?, status=?, due_date=? WHERE id=?",
                 (company, amount, payment_date, status, due_date, record_id))
 
     conn.commit()
